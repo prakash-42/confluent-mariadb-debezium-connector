@@ -1,44 +1,45 @@
 # Introduction 
-This guide details how to modify official debezium connectors so that they'll work with self-hosted confluent platform. I'll take the example of debezium-connector-mariadb, but this should also apply to other debezium connectors.
+This guide explains how to modify official Debezium connectors to work with a self-hosted Confluent Platform. The example used here is the `debezium-connector-mariadb`, but the steps should apply to other Debezium connectors as well.
 
-### Step 1: Compare the differences between debezium connector on confluent hub, and the one present on official distribution.
-Since the debezium-connector-mariadb isn't available on confluent hub, I used debezium-connector-mysql for this comparison.
+### Step 1: Compare the differences between the Debezium connector on Confluent Hub and the official distribution
+Since the `debezium-connector-mariadb` is not available on Confluent Hub, the `debezium-connector-mysql` is used for comparison.
 
-1a. Download the official connector from https://debezium.io/documentation/reference/stable/install.html
-1b. Download the confluent hub connector from https://www.confluent.io/hub/debezium/debezium-connector-mysql
+1a. Download the official connector from [Debezium's official website](https://debezium.io/documentation/reference/stable/install.html).  
+1b. Download the Confluent Hub connector from [Confluent Hub](https://www.confluent.io/hub/debezium/debezium-connector-mysql).
 
-Tip: You can edit the download links from official source to point to the same version of connector as you've downloaded from confluent-hub.
+**Tip:** Edit the download links from the official source to match the version of the connector you downloaded from Confluent Hub.
 
-Here, you'll notice that the official connector has all the files (of different types) in the base folder, while the confluent-hub connector has different folders for jars and docs.
+You will notice that the official connector has all files (of different types) in the base folder, while the Confluent Hub connector organizes files into separate folders for JARs and documentation.
 
-### Step 2: Download and reorganize files in the debezium-connector-mariadb
-Download the official mariadb connector from the [debezium download page](https://debezium.io/documentation/reference/stable/install.html), and reorganize files according to the observations in previous step.
+### Step 2: Download and reorganize files for the `debezium-connector-mariadb`
+Download the official MariaDB connector from the [Debezium download page](https://debezium.io/documentation/reference/stable/install.html) and reorganize the files based on the observations from Step 1.
 
-2a. Put all the *.jar* files in the *lib* folder
-2b. Put all the *.txt* and *.md* files in the *docs* folder
-2c. Copy and paste the *assets* and *etc* folders from the other connector to your own connector
-2d. Create a manifest.json file for your connector. You can copy the file from the mysql connector and replace the important fields such as name, version and title.
+2a. Place all `.jar` files in the `lib` folder.  
+2b. Place all `.txt` and `.md` files in the `docs` folder.  
+2c. Copy the `assets` and `etc` folders from the MySQL connector to your MariaDB connector.  
+2d. Create a `manifest.json` file for your connector. You can copy this file from the MySQL connector and update the relevant fields, such as `name`, `version`, and `title`.
 
-### Step 3: Package your connector and compute checksum
-3a. Package your connector in a *.zip* file, just like the one downloaded from confluent hub.
-3b. Compute sha512 checksum of your zip file, using any CLI/online tool.
-3c. Host your connector zip file at a location so that it's accessible from your network using http. (We've hosted it on github :)
+### Step 3: Package your connector and compute its checksum
+3a. Package your connector into a `.zip` file, similar to the format used for connectors downloaded from Confluent Hub.  
+3b. Compute the SHA-512 checksum of your `.zip` file using any CLI or online tool.  
+3c. Host your connector `.zip` file at a location accessible from your network via HTTP. (For example, you can host it on GitHub.)
 
+---
 
-# Debugging installation issues
-This part is specifically applicable if you're using the confluent's kubernetes operator, so that the init container is the one responsible for downloading and installing your plugin.
+# Debugging Installation Issues
+This section is specifically relevant if you are using Confluent's Kubernetes Operator, where the init container is responsible for downloading and installing your plugin.
 
-You can separately download the init container's docker image and run it, to inspect the files under it and how it installs the connector. In the version I tested on, there's a `/opt/startup.sh` script present in that image, which in-turn invokes the `/opt/generate_install_plugin_script.py` script to download and install the plugin.
+You can download and run the init container's Docker image separately to inspect its files and understand how it installs the connector. In the version tested, the `/opt/startup.sh` script in the image invokes the `/opt/generate_install_plugin_script.py` script to download and install the plugin.
 
-The `generate_install_plugin_script.py` is really a wrapper over the `confluent-hub` CLI and ends up running the `confluent-hub install` command to actually install the plugin.
+The `generate_install_plugin_script.py` script is essentially a wrapper around the `confluent-hub` CLI and executes the `confluent-hub install` command to install the plugin.
 
-Here are commands to pull and run the init container separately in a docker environment:
+### Commands to pull and run the init container in a Docker environment:
 ```bash
 docker pull confluentinc/confluent-init-container:2.7.0
 docker run -it --entrypoint sh confluentinc/confluent-init-container:2.7.0
 ```
 
-Here are the contents of `generate_install_plugin_script.py` script:
+Contents of the `generate_install_plugin_script.py` script:
 ```python
 #!/usr/bin/env python
 
