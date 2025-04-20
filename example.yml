@@ -1,0 +1,71 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect-mariadb
+spec:
+  replicas: 1
+  configOverrides:
+    server:
+      - connector.client.config.override.policy=All
+      - producer.max.request.size=20971520
+    jvm:
+      - "-Xms6G"
+      - "-Xmx6G"
+      - "-XX:+UseContainerSupport"
+      - "-XX:+ExitOnOutOfMemoryError"
+    log4j:
+      - log4j.rootLogger=INFO, stdout, connectAppender
+      - log4j.logger.org.I0Itec.zkclient=ERROR, stdout, connectAppender
+      - log4j.logger.org.apache.zookeeper=ERROR, stdout, connectAppender
+      - log4j.logger.org.reflections=ERROR, stdout, connectAppender
+      - log4j.appender.connectAppender=org.apache.log4j.DailyRollingFileAppender
+      - log4j.appender.connectAppender.DatePattern='.'yyyy-MM-dd-HH
+      - log4j.appender.connectAppender.File=/var/log/confluent/connect-worker-mariadb.log
+      - log4j.appender.connectAppender.layout=org.apache.log4j.EnhancedPatternLayout
+      - log4j.appender.connectAppender.layout.ConversionPattern=[%p] %d [%t] %c %M - %m%n
+  image:
+    application: confluentinc/cp-server-connect:7.9.0
+    init: confluentinc/confluent-init-container:2.7.0
+  mountedVolumes:
+    volumeMounts:
+      - mountPath: /var/log/confluent
+        name: logfolder
+    volumes:
+      - hostPath:
+          path: /var/log/confluent
+        name: logfolder
+  podTemplate:
+    envVars:
+      - name: KAFKA_HEAP_OPTS
+        value: "-Xms6G -Xmx6G"
+    resources:
+      requests:
+        memory: "5Gi"  # 5GiB memory reserved for the worker pod
+        cpu: "2000m"    # 2000m (2 core) CPU reserved for the worker pod
+      limits:
+        memory: "12Gi"  # 12GiB maximum memory the worker pod can use
+        cpu: "8000m"   # 8000m ( core) maximum CPU the worker pod can use
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        url:
+          - name: debezium-connector-mariadb
+            archivePath: "https://raw.githubusercontent.com/mykaarma/confluent-mariadb-debezium-connector/main/debezium-connector-mariadb.zip"
+            checksum: "a688a863cdbdf933caf7be744bdfb76055a65f59e84649fd475f99b9ed7afc7a507cf210c04b1bbce9bd5e5abe078efc143ec3990346703a0f38db738bb71147"
+  dependencies:
+    kafka:
+      bootstrapEndpoint: ${KAFKA_BOOTSTRAP_SERVERS}
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: ccloud-credentials
+      tls:
+        enabled: true
+        ignoreTrustStoreConfig: true
+    schemaRegistry:
+      url: ${SCHEMA_REGISTRY_URL}
+      authentication:
+        type: basic
+        basic:
+          secretRef: ccloud-sr-credentials
